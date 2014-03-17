@@ -1,4 +1,7 @@
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -12,6 +15,7 @@ public class WSD {
 
 	public static String dictionaryText;
 	public static HashMap<String, HashMap<Integer, String[]>> dictMap = new HashMap<>();
+	public String trainingText;
 	
 	public static final String dict_path = "src/Data/dictionary.xml";
 	
@@ -22,8 +26,6 @@ public class WSD {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		
 	}
 	
 	/*
@@ -51,6 +53,32 @@ public class WSD {
 			defs.addAll(Arrays.asList(tokens));
 		}
 		return defs.toArray(new String[defs.size()]);
+	}
+	
+	//Return the sense/definition of the target word
+	public int parseTestData(String filename) {
+		
+		File file = new File(filename);
+		BufferedReader bufferedReader = null;
+		
+		try {
+			bufferedReader = new BufferedReader(new FileReader(file));
+			String line = bufferedReader.readLine();
+			
+			while (line != null) {
+				
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			bufferedReader.close();
+		}
+		
+		
+		
+		return 0;
 	}
 	
 }
