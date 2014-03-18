@@ -214,25 +214,41 @@ public class WSD {
 						
 						//for each word, add the points accordingly for each sense
 						//+1 for each word occurrence, +2 if there are consecutive words
-						for (String t: contextMeaning) {
+						for (int j = 0; j < contextMeaning.length; j++) {
+							String curr = contextMeaning[j]; //current contextMeaning
+							
 							for (int i = 0; i < numSenses; i++) {
 								//if the key exists, add one for each key and check surrounding
 								//keys to see if there are consecutive matches
-								if (targetPointers.get(i).containsKey(t)) {
+								if (targetPointers.get(i).containsKey(curr)) {
 									points[i]++;
 									
 									//get indices (delimited by commas), convert to ints
-									String[] tempIndices = targetPointers.get(i).get(t).split(",");
+									String[] tempIndices = targetPointers.get(i).get(curr).split(",");
 									int[] indices = new int[tempIndices.length];
 									for (int k = 0; k < tempIndices.length; k++)
 										indices[k] = Integer.parseInt(tempIndices[k]);
 									
+									//for bonus points (+1 if there are 2 consecutive words)
 									for (int k = 0; k < indices.length; k++) {
+										//length of dictionary definition for that sense
+										int targetSize = targetSensesDefinitions.get(i).length;
 										//store previous and next word surrounding context word
-										String prev;
+										String prev = null;
+										String next = null;
+										
+										int currIndex = indices[k];
+										if (currIndex == 0) {
+											next = contextMeaning[1];
+										} else if (currIndex == targetSize) {
+											prev = contextMeaning[currIndex-1];
+										} else {
+											prev = contextMeaning[currIndex-1];
+											next = contextMeaning[currIndex+1];
+										}
+										
+										//targetSensesDefinitions.get(i).length;
 									}
-									
-									
 								}
 							}
 						}
@@ -244,10 +260,7 @@ public class WSD {
 				
 				
 				//TODO: Change numbers into 1 entry?
-				//TODO: Deal with contractions b/c we removed apostrophes
-				
-				
-				
+				//TODO: Deal with contractions b/c we removed apostrophes	
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
