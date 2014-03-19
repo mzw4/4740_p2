@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import edu.smu.tspell.wordnet.Synset;
@@ -298,15 +299,22 @@ public class WSD {
 							}
 						}
 						
-						//Pattern.compile("[0-9]").matcher(s).find()
 						//increment maxIndex because indices start at 0
 						maxIndex = maxIndex + 1;
-						//for (int i = 0; i < dictSenses.size(); i++) {
-							//String curr
-							//if (Pattern.compile("["++"]").matcher(s).find())
-						//}
+						//dict sense that corresponds to wordnet sense
+						int dictSense = 0;
+						for (int i = 0; i < dictSenses.size(); i++) {
+							String[] wordNetSenses = dictSenses.get(i).split(",");
+							
+							for (int j = 0; j < wordNetSenses.length; j++) {
+								if (Integer.parseInt(wordNetSenses[j]) == maxIndex) {
+									dictSense = j;
+									break;
+								}
+							}
+						}
 						
-						senses.add(maxIndex+1);
+						senses.add(dictSense+1);
 					}
 				}
 				
@@ -338,9 +346,56 @@ public class WSD {
 	 * Note: sense 0 in the resulting array is actually sense 1
 	 */
 	public static ArrayList<String> parseXML(String target) {
+		ArrayList<String> wordNetSenses = new ArrayList<String>();
+		File file = new File("src/Data/dictionary.xml");
+		BufferedReader bufferedReader = null;
+		
+		try {
+			bufferedReader = new BufferedReader(new FileReader(file));
+			String line = bufferedReader.readLine();
+			
+			while (line != null) {
+				//if target word found, read until next lexelt appears
+				//and store senses into arraylist
+				if (Pattern.compile("item=\""+target+"\"").matcher(line).find()) {	
+					//read next line to skip over opening lexelt tag
+					line = bufferedReader.readLine();
+					
+					while (!line.equals("</lexelt>")) {
+						Pattern p = Pattern.compile("(wordnet=\")[0-9,]*(\")");
+						Matcher m = p.matcher(line);
+						
+						//find next match of regex
+						m.find();
+						
+						//remove wordnet and quotes
+						String match = m.group();
+						int quoteIndex = m.group().indexOf("\"");
+						String newMatch = match.substring(quoteIndex+1,match.length()-1);
+						wordNetSenses.add(newMatch);
+						
+						//reading between lexelt tags
+						line = bufferedReader.readLine();
+					}
+					
+					break;
+				}
+				
+				line = bufferedReader.readLine();
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				bufferedReader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 		
 		
-		return null;
+		return wordNetSenses;
 	}
 	
 	public static void main(String[] args) {
@@ -350,7 +405,7 @@ public class WSD {
 		for (int i:senses)
 			System.out.println(i);
 			
-		System.out.println("end");
+		//ArrayList<String> test = parseXML("chance.n");
 	}
 	
 }
