@@ -45,7 +45,7 @@ public class Filter {
 		pipeline.annotate(document);		
 		
 		for (CoreLabel token : document.get(TokensAnnotation.class)) {
-			if(!stopWords.contains(token.word())) {
+			if(!stopWords.contains(token.word()) && token.word().length() > 2) {
 				filtered.add(token.get(LemmaAnnotation.class));
 			}
 		}
@@ -90,7 +90,6 @@ public class Filter {
 			}
 		}
 	}
-	
 	
 	public static void main(String[] args) {
 		Filter filter = new Filter();

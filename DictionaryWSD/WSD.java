@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.regex.Pattern;
 
 import edu.smu.tspell.wordnet.Synset;
 import edu.smu.tspell.wordnet.SynsetType;
@@ -31,7 +29,7 @@ public class WSD {
 		
 	public static void initDictionary() {
 		// Will only work on mikeys computer
-		System.setProperty("wordnet.database.dir", "/home/blee/workspace/4740_p2/WordNet-3.0/dict/");
+		System.setProperty("wordnet.database.dir", "/Users/mike/Documents/workspace-NLP/WordNet-3.0/dict/");
 		database = WordNetDatabase.getFileInstance();
 		filter = new Filter();
 	}
@@ -185,120 +183,92 @@ public class WSD {
 				//store target word
 				int targetIndex = line.indexOf("|");
 				String target = line.substring(0,targetIndex).trim();
+				int numSenses = processTarget(target);		
+				target = target.substring(0, target.indexOf("."));
+				
 				//update new string without target
 				line = line.substring(targetIndex+1,line.length());
-				
 				//retrieve block of text
 				int textIndex = line.indexOf("|");
 				String text = line.substring(textIndex+1,line.length()).trim();
-				
-				int numSenses = processTarget(target);
-				
-				//split text and remove ,.$''``%?!--
-				String[] splitText = text.split(" ");
-				
-				HashSet<String> notImportant = new HashSet<String>();
-				notImportant.add(",");
-				notImportant.add(".");
-				notImportant.add("$");
-				notImportant.add("''");
-				notImportant.add("``");
-				notImportant.add("%%");
-				notImportant.add("%");
-				notImportant.add("?");
-				notImportant.add("!");
-				notImportant.add("--");
-				notImportant.add(")");
-				notImportant.add("(");
-				notImportant.add(":");
-				notImportant.add(";");
-				notImportant.add("&");
-				notImportant.add("#");
-				notImportant.add("{");
-				notImportant.add("}");
-				notImportant.add("...");
-				
-				//TODO: Lemmatize target word and other words in block of text
-				//int posIndex = target.indexOf(".");
-				//String targetRoot = target.substring(0,posIndex);
-				
+				// Filter text to lemmatize and remove stop words
+				String[] filteredText = filter.filterFeatures(text);
+
 				//points for each sense
 				int[] points = new int[numSenses];
 				
-				for (String s: splitText) {
-					//remove unimportant characters, target word and words with digits
-					if (!(notImportant.contains(s) || s.equals(target)
-							|| (Pattern.compile("[0-9]").matcher(s).find()))) {
-						String lower_s = s.toLowerCase();
-						String[] contextMeaning = lookUpDictionaryContext(lower_s);
-						//System.out.println(contextMeaning);
-						//System.out.println("hi");
-						if (contextMeaning == null)
-							continue;
-						//for each word, add the points accordingly for each sense
-						//+1 for each word occurrence, +2 if there are consecutive words
-						for (int j = 0; j < contextMeaning.length; j++) {
-							String curr = contextMeaning[j]; //current contextMeaning
-							String nextContext = (j == contextMeaning.length-1)?null:contextMeaning[j+1];
-							String prevContext = (j == 0)?null:contextMeaning[j-1];
-							
-							
-							for (int i = 0; i < numSenses; i++) {
-								//if the key exists, add one for each key and check surrounding
-								//keys to see if there are consecutive matches
-								if (targetPointers.get(i).containsKey(curr)) {
-									points[i]++;
-									
-									//get indices (delimited by commas), convert to ints
-									String[] tempIndices = targetPointers.get(i).get(curr).split(",");
-									int[] indices = new int[tempIndices.length];
-									for (int k = 0; k < tempIndices.length; k++)
-										indices[k] = Integer.parseInt(tempIndices[k]);
-									
-									//for bonus points (+1 if there are 2 consecutive words)
-									for (int k = 0; k < indices.length; k++) {
-										//length of dictionary definition for that sense
-										int targetSize = targetSensesDefinitions.get(i).length;
-										//store previous and next word surrounding target word
-										String[] targetDef = targetSensesDefinitions.get(i);
-										
-										int currTargIndex = indices[k];
-										String prevTarget = (currTargIndex == 0)?null:targetDef[currTargIndex-1];
-										String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex+1];
-										                           
-										//if words in front or back of the word are the same, incrementing points
-										if (nextTarget != null && nextContext != null)
-											if (nextTarget.equals(nextContext))
-												points[i]++;
+				for (String s: filteredText) {
+					if(s.equals(target)) {
+						continue;
+					}
 			
-										if (prevTarget != null && prevContext != null)
-											if (prevContext.equals(prevTarget))
-												points[i]++;
-									}
+					String lower_s = s.toLowerCase();
+					String[] contextMeaning = lookUpDictionaryContext(lower_s);
+					//System.out.println(contextMeaning);
+
+					if (contextMeaning == null)
+						continue;
+					
+					//for each word, add the points accordingly for each sense
+					//+1 for each word occurrence, +2 if there are consecutive words
+					for (int j = 0; j < contextMeaning.length; j++) {
+						String curr = contextMeaning[j]; //current contextMeaning
+						String nextContext = (j == contextMeaning.length-1)?null:contextMeaning[j+1];
+						String prevContext = (j == 0)?null:contextMeaning[j-1];
+						
+						for (int i = 0; i < numSenses; i++) {
+							//if the key exists, add one for each key and check surrounding
+							//keys to see if there are consecutive matches
+							if (targetPointers.get(i).containsKey(curr)) {
+								points[i]++;
+								
+								//get indices (delimited by commas), convert to ints
+								String[] tempIndices = targetPointers.get(i).get(curr).split(",");
+								int[] indices = new int[tempIndices.length];
+								for (int k = 0; k < tempIndices.length; k++)
+									indices[k] = Integer.parseInt(tempIndices[k]);
+								
+								//for bonus points (+1 if there are 2 consecutive words)
+								for (int k = 0; k < indices.length; k++) {
+									//length of dictionary definition for that sense
+									int targetSize = targetSensesDefinitions.get(i).length;
+									//store previous and next word surrounding target word
+									String[] targetDef = targetSensesDefinitions.get(i);
+									
+									int currTargIndex = indices[k];
+									String prevTarget = (currTargIndex == 0)?null:targetDef[currTargIndex-1];
+									String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex+1];
+									                           
+									//if words in front or back of the word are the same, incrementing points
+									if (nextTarget != null && nextContext != null)
+										if (nextTarget.equals(nextContext))
+											points[i]++;
+		
+									if (prevTarget != null && prevContext != null)
+										if (prevContext.equals(prevTarget))
+											points[i]++;
 								}
 							}
 						}
-						
-						ArrayList<String> dictSenses = parseXML(target);
-						//find max points value from senses, add to arraylist
-						int maxIndex = 0;
-						for (int i = 0; i < numSenses; i++) {
-							if (points[i] > points[maxIndex]) {
-								maxIndex = i;
-							}
-						}
-
-						senses.add(maxIndex+1);
 					}
 				}
-				
-				
+					
+				ArrayList<String> dictSenses = parseXML(target);
+				//find max points value from senses, add to arraylist
+				int maxIndex = 0;
+				for (int i = 0; i < numSenses; i++) {
+					if (points[i] > points[maxIndex]) {
+						maxIndex = i;
+					}
+				}
+
+				senses.add(maxIndex+1);
+			
 				line = bufferedReader.readLine();
-				//TODO: Check if it is actually in the dictionary
-				
-				//TODO: Blacklist specific words
-				//TODO: Deal with contractions b/c we removed apostrophes (remove words)
 			}
+			//TODO: Check if it is actually in the dictionary
+			
+			//TODO: Deal with contractions b/c we removed apostrophes (remove words)
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -311,7 +281,6 @@ public class WSD {
 			}
 		}
 		
-		
 		return senses;
 	}
 	
@@ -320,19 +289,17 @@ public class WSD {
 	 * Note: sense 0 in the resulting array is actually sense 1
 	 */
 	public static ArrayList<String> parseXML(String target) {
-		
-		
 		return null;
 	}
 	
 	public static void main(String[] args) {
 		WSD.initDictionary();
-		WSD.lookUpDictionaryContext("chair.n");
-		ArrayList<Integer> senses = WSD.parseTestData("/home/blee/workspace/4740_p2/src/Data/test_data.data");
+		ArrayList<Integer> senses = WSD.parseTestData("src/test_data.data");
 		for (int i:senses)
-			System.out.println(i);
+			System.out.print(i + ", ");
+		System.out.println();
 			
-		System.out.println("end");
+		System.out.println("end: " + senses.size());
 	}
 	
 }
