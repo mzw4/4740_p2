@@ -102,9 +102,12 @@ public class WSD {
 	/*
 	 * Return the sense/definition of the target word for each line
 	 */
-	public static int[] parseTestData(String filename) {
+	public static ArrayList<Integer> parseTestData(String filename) {
 		File file = new File(filename);
 		BufferedReader bufferedReader = null;
+		
+		//ArrayList to hold senses for each target word in each line
+		ArrayList<Integer> senses = new ArrayList<Integer>();
 		
 		try {
 			bufferedReader = new BufferedReader(new FileReader(file));
@@ -140,8 +143,6 @@ public class WSD {
 				int posIndex = target.indexOf(".");
 				String targetRoot = target.substring(0,posIndex);
 				
-				//HashMap<String,String[]> contextWords = new HashMap<String,String[]>();
-				
 				//points for each sense
 				int[] points = new int[numSenses];
 				
@@ -154,6 +155,9 @@ public class WSD {
 						//+1 for each word occurrence, +2 if there are consecutive words
 						for (int j = 0; j < contextMeaning.length; j++) {
 							String curr = contextMeaning[j]; //current contextMeaning
+							String nextContext = (j == contextMeaning.length-1)?null:contextMeaning[j+1];
+							String prevContext = (j == 0)?null:contextMeaning[j-1];
+							
 							
 							for (int i = 0; i < numSenses; i++) {
 								//if the key exists, add one for each key and check surrounding
@@ -171,30 +175,36 @@ public class WSD {
 									for (int k = 0; k < indices.length; k++) {
 										//length of dictionary definition for that sense
 										int targetSize = targetSensesDefinitions.get(i).length;
-										//store previous and next word surrounding context word
-										String prev = null;
-										String next = null;
+										//store previous and next word surrounding target word
+										String[] targetDef = targetSensesDefinitions.get(i);
 										
-										int currIndex = indices[k];
-										if (currIndex == 0) {
-											next = contextMeaning[1];
-										} else if (currIndex == targetSize) {
-											prev = contextMeaning[currIndex-1];
-										} else {
-											prev = contextMeaning[currIndex-1];
-											next = contextMeaning[currIndex+1];
-										}
+										int currTargIndex = indices[k];
+										String prevTarget = (currTargIndex == 0)?null:targetDef[currTargIndex-1];
+										String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex-1];
+										                           
+										//if words in front or back of the word are the same, incrementing points
+										if (prevTarget != null && prevTarget != null)
+											if (nextTarget.equals(prevTarget))
+												points[i]++;
 										
-										//targetSensesDefinitions.get(i).length;
-											
+										if (nextContext != null && prevContext != null)
+											if (nextContext.equals(prevContext))
+												points[i]++;
 									}
-									
-									
 								}
 							}
 						}
 					}
 				}
+				
+				//find max points value from senses, add to arraylist
+				int max = 0;
+				for (int i = 0; i < numSenses; i++) {
+					if (points[i] > max) {
+						max = points[i];
+					}
+				}
+				senses.add(max);
 				
 				line = bufferedReader.readLine();
 				//TODO: Check if it is actually in the dictionary
@@ -213,7 +223,7 @@ public class WSD {
 		
 		
 		
-		return new int[0];
+		return senses;
 	}
 	
 }
