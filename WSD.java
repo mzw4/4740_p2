@@ -229,7 +229,6 @@ public class WSD {
 					if (!(notImportant.contains(s) || s.equals(target)
 							|| (Pattern.compile("[0-9]").matcher(s).find()))) {
 						String lower_s = s.toLowerCase();
-						System.out.println(lower_s);
 						String[] contextMeaning = lookUpDictionaryContext(lower_s);
 						//System.out.println(contextMeaning);
 						//System.out.println("hi");
@@ -264,29 +263,41 @@ public class WSD {
 										
 										int currTargIndex = indices[k];
 										String prevTarget = (currTargIndex == 0)?null:targetDef[currTargIndex-1];
-										String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex-1];
+										String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex+1];
 										                           
 										//if words in front or back of the word are the same, incrementing points
-										if (prevTarget != null && prevTarget != null)
-											if (nextTarget.equals(prevTarget))
+										if (nextTarget != null && nextContext != null)
+											if (nextTarget.equals(nextContext))
 												points[i]++;
 			
-										if (nextContext != null && prevContext != null)
-											if (nextContext.equals(prevContext))
+										if (prevTarget != null && prevContext != null)
+											if (prevContext.equals(prevTarget))
 												points[i]++;
 									}
 								}
 							}
 						}
 						
+						ArrayList<String> dictSenses = parseXML(target);
 						//find max points value from senses, add to arraylist
 						int max = 0;
+						int maxIndex = 0;
 						for (int i = 0; i < numSenses; i++) {
 							if (points[i] > max) {
 								max = points[i];
+								maxIndex = i;
 							}
 						}
-						senses.add(max);
+						
+						//Pattern.compile("[0-9]").matcher(s).find()
+						//increment maxIndex because indices start at 0
+						maxIndex = maxIndex + 1;
+						//for (int i = 0; i < dictSenses.size(); i++) {
+							//String curr
+							//if (Pattern.compile("["++"]").matcher(s).find())
+						//}
+						
+						senses.add(maxIndex+1);
 					}
 				}
 				
@@ -313,10 +324,23 @@ public class WSD {
 		return senses;
 	}
 	
+	/*
+	 * Parse the given XML file and extract the mappings in an arraylist
+	 * Note: sense 0 in the resulting array is actually sense 1
+	 */
+	public static ArrayList<String> parseXML(String target) {
+		
+		
+		return null;
+	}
+	
 	public static void main(String[] args) {
 		WSD.initDictionary();
 		WSD.lookUpDictionaryContext("chair.n");
-		WSD.parseTestData("/home/blee/workspace/4740_p2/src/Data/test_data.data");
+		ArrayList<Integer> senses = WSD.parseTestData("/home/blee/workspace/4740_p2/src/Data/test_data.data");
+		for (int i:senses)
+			System.out.println(i);
+			
 		System.out.println("end");
 	}
 	
