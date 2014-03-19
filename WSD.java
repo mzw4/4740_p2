@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.regex.Pattern;
 
 import edu.smu.tspell.wordnet.Synset;
 import edu.smu.tspell.wordnet.SynsetType;
@@ -28,7 +29,7 @@ public class WSD {
 	
 	public static void initDictionary() {
 		// Will only work on mikeys computer
-		System.setProperty("wordnet.database.dir", "/Users/mike/Documents/workspace-NLP/WordNet-3.0/dict/");
+		System.setProperty("wordnet.database.dir", "/home/blee/workspace/4740_p2/WordNet-3.0/dict/");
 		database = WordNetDatabase.getFileInstance();
 	}
 	
@@ -124,9 +125,10 @@ public class WSD {
 	
 	/*
 	 * Make a new array with # of entries = # of senses of the target word
-	 * populate hashmap pointing to the index at which it is located
+	 * populate hashmap pointing to the index at which it is located.
+	 * Returns number of Senses for the target Word in the dictionary
 	 */
-	public static void processTarget(String target) {
+	public static int processTarget(String target) {
 		HashMap<Integer,String[]> targetMap = lookUpDictionaryTarget(target);
 		int numSenses = targetMap.size();
 		
@@ -159,6 +161,8 @@ public class WSD {
 			targetSensesDefinitions.add(senseStrings);
 		}
 		
+		return numSenses;
+		
 	}
 	
 	/*
@@ -184,34 +188,47 @@ public class WSD {
 				
 				//retrieve block of text
 				int textIndex = line.indexOf("|");
-				String text = line.substring(textIndex,line.length()).trim();
+				String text = line.substring(textIndex+1,line.length()).trim();
 				
-				//retrieve hashmap for different senses of target word
-				HashMap<Integer,String[]> targetWord = lookUpDictionaryTarget(target);
-				int numSenses = targetWord.size();
-				processTarget(target);
+				int numSenses = processTarget(target);
 				
-				//split text and remove ,.$'`%
+				//split text and remove ,.$''``%?!--
 				String[] splitText = text.split(" ");
+				
 				HashSet<String> notImportant = new HashSet<String>();
 				notImportant.add(",");
 				notImportant.add(".");
 				notImportant.add("$");
-				notImportant.add("'");
-				notImportant.add("`");
+				notImportant.add("''");
+				notImportant.add("``");
 				notImportant.add("%%");
+				notImportant.add("%");
+				notImportant.add("?");
+				notImportant.add("!");
+				notImportant.add("--");
+				notImportant.add(")");
+				notImportant.add("(");
+				notImportant.add(":");
+				notImportant.add(";");
+				notImportant.add("&");
+				notImportant.add("#");
+				notImportant.add("{");
+				notImportant.add("}");
+				notImportant.add("...");
 				
 				//TODO: Lemmatize target word and other words in block of text
-				int posIndex = target.indexOf(".");
-				String targetRoot = target.substring(0,posIndex);
+				//int posIndex = target.indexOf(".");
+				//String targetRoot = target.substring(0,posIndex);
 				
 				//points for each sense
 				int[] points = new int[numSenses];
 				
 				for (String s: splitText) {
-					//remove unimportant characters and target word
-					if (!(notImportant.contains(s) || s.equals(targetRoot))) {
-						String[] contextMeaning = lookUpDictionaryContext(s);
+					//remove unimportant characters, target word and words with digits
+					if (!(notImportant.contains(s) || s.equals(target)
+							|| (Pattern.compile("[0-9]").matcher(s).find()))) {
+						String lower_s = s.toLowerCase();
+						String[] contextMeaning = lookUpDictionaryContext(lower_s);
 						
 						//for each word, add the points accordingly for each sense
 						//+1 for each word occurrence, +2 if there are consecutive words
@@ -256,31 +273,35 @@ public class WSD {
 								}
 							}
 						}
+						
+						//find max points value from senses, add to arraylist
+						int max = 0;
+						for (int i = 0; i < numSenses; i++) {
+							if (points[i] > max) {
+								max = points[i];
+							}
+						}
+						senses.add(max);
 					}
 				}
 				
-				//find max points value from senses, add to arraylist
-				int max = 0;
-				for (int i = 0; i < numSenses; i++) {
-					if (points[i] > max) {
-						max = points[i];
-					}
-				}
-				senses.add(max);
 				
 				line = bufferedReader.readLine();
 				//TODO: Check if it is actually in the dictionary
 				
-				
-				//TODO: Change numbers into 1 entry?
-				//TODO: Deal with contractions b/c we removed apostrophes	
+				//TODO: Blacklist specific words
+				//TODO: Deal with contractions b/c we removed apostrophes (remove words)
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			bufferedReader.close();
+			try {
+				bufferedReader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		
@@ -290,7 +311,8 @@ public class WSD {
 	public static void main(String[] args) {
 		WSD.initDictionary();
 		WSD.lookUpDictionaryContext("chair.n");
-		
+		WSD.parseTestData("/home/blee/workspace/4740_p2/src/Data/test_data.data");
+		System.out.println("end");
 	}
 	
 }
