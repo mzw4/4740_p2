@@ -26,6 +26,8 @@ public class WSD {
 	//array to which hashmap of pointers points to
 	public static ArrayList<String[]> targetSensesDefinitions;
 	
+	public static String[] stopWords = {"the", "and", ""};
+	
 	public static void initDictionary() {
 		// Will only work on mikeys computer
 		System.setProperty("wordnet.database.dir", "/Users/mike/Documents/workspace-NLP/WordNet-3.0/dict/");
@@ -93,21 +95,26 @@ public class WSD {
 			System.out.println("Invalid target word \"" + target + "\"");
 			return null;
 		}
-		String type = target.substring(target.length() - 1);
 		
 		Synset[] synset = null;
-		switch(type) {
-		case "n":
-			synset = database.getSynsets(target.substring(0, target.indexOf(".")), SynsetType.NOUN);
-			break;
-		case "v":
-			synset = database.getSynsets(target, SynsetType.VERB);
-			break;
-		case "a":
-			synset = database.getSynsets(target, SynsetType.ADJECTIVE);
-			break;
-		default:
-			break;
+		if(target.indexOf(".") < 0) {
+			synset = database.getSynsets(target);
+		} else {
+			String type = target.substring(target.length() - 1);
+			target = target.substring(0, target.indexOf("."));
+			switch(type) {
+			case "n":
+				synset = database.getSynsets(target, SynsetType.NOUN);
+				break;
+			case "v":
+				synset = database.getSynsets(target, SynsetType.VERB);
+				break;
+			case "a":
+				synset = database.getSynsets(target, SynsetType.ADJECTIVE);
+				break;
+			default:
+				break;
+			}
 		}
 		return synset;
 	}
@@ -115,10 +122,12 @@ public class WSD {
 	/*
 	 * Filter features by lemmatizing, then removing irrelevant features from the list,
 	 * and keeping only lexemes that may have an impact on semantic meaning
+	 * 
+	 * Remove stop words, and words with 2 or less letters
 	 */
 	private static String[] filterFeatures(String[] features) {
 		ArrayList<String> filtered = new ArrayList<>();
-		
+		HashSet<String> blacklist = new HashSet<>(Arrays.asList(stopWords));
 		return features;
 	}
 	
@@ -130,7 +139,9 @@ public class WSD {
 		HashMap<Integer,String[]> targetMap = lookUpDictionaryTarget(target);
 		int numSenses = targetMap.size();
 		
+		// To account for consecutive features, for each definition, hold a map of <features, indices>
 		targetPointers = new ArrayList<HashMap<String,String>>(numSenses);
+		// To check if a feature is consecutive, hold an ordered array for each definition
 		targetSensesDefinitions = new ArrayList<String[]>(numSenses);
 		
 		//populate targetSensesDefinitions
@@ -158,7 +169,6 @@ public class WSD {
 			//copy senseStrings to targetSensesDefinitions array
 			targetSensesDefinitions.add(senseStrings);
 		}
-		
 	}
 	
 	/*
@@ -181,7 +191,7 @@ public class WSD {
 				
 				//retrieve block of text
 				int textIndex = line.indexOf("|");
-				String text = line.substring(textIndex,line.length()).trim();
+				String text = line.substring(textIndex).trim();
 				
 				//retrieve hashmap for different senses of target word
 				HashMap<Integer,String[]> targetWord = lookUpDictionaryTarget(target);
