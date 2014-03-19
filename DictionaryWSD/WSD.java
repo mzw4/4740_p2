@@ -1,3 +1,4 @@
+package DictionaryWSD;
 import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -21,18 +22,18 @@ public class WSD {
 	public static HashMap<String, HashMap<Integer, String[]>> dictMap = new HashMap<>();
 
 	private static WordNetDatabase database;
-
+	private static Filter filter;
+	
 	//string of word points to an index/position in the text block
 	public static ArrayList<HashMap<String,String>> targetPointers;
 	//array to which hashmap of pointers points to
 	public static ArrayList<String[]> targetSensesDefinitions;
-	
-	public static String[] stopWords = {"the", "and", ""};
-	
+		
 	public static void initDictionary() {
 		// Will only work on mikeys computer
 		System.setProperty("wordnet.database.dir", "/home/blee/workspace/4740_p2/WordNet-3.0/dict/");
 		database = WordNetDatabase.getFileInstance();
+		filter = new Filter();
 	}
 	
 	/*
@@ -56,11 +57,11 @@ public class WSD {
 		HashMap<Integer, String[]> defs = new HashMap<>();
 		for(int i = 0; i < synset.length; i++) {
 			// Process and tokenize
-			String processed = synset[i].getDefinition().replaceAll("([(),!.?;:])", " $1 ");
-			String[] tokens = processed.split("\\s+");
+//			String processed = synset[i].getDefinition().replaceAll("([(),!.?;:])", " $1 ");
+//			String[] tokens = processed.split("\\s+");
 			
 			// Filter irrelevant words and insert into map
-			defs.put(i, filterFeatures(tokens));
+			defs.put(i, filter.filterFeatures(synset[i].getDefinition()));
 		}
 		return defs;
 	}
@@ -78,11 +79,11 @@ public class WSD {
 		ArrayList<String> tokens = new ArrayList<>();
 		for(Synset form: synset) {
 			// Process and tokenize
-			String processed = form.getDefinition().replaceAll("([(),!.?;:])", " $1 ");
-			String[] strings = processed.split("\\s+");
+//			String processed = form.getDefinition().replaceAll("([(),!.?;:])", " $1 ");
+//			String[] strings = processed.split("\\s+");
 			
 			// Filter irrelevant features and insert into list
-			tokens.addAll(Arrays.asList(filterFeatures(strings)));
+			tokens.addAll(Arrays.asList(filter.filterFeatures(form.getDefinition())));
 		}
 		return tokens.toArray(new String[tokens.size()]);
 	}
@@ -118,18 +119,6 @@ public class WSD {
 			}
 		}
 		return synset;
-	}
-	
-	/*
-	 * Filter features by lemmatizing, then removing irrelevant features from the list,
-	 * and keeping only lexemes that may have an impact on semantic meaning
-	 * 
-	 * Remove stop words, and words with 2 or less letters
-	 */
-	private static String[] filterFeatures(String[] features) {
-		ArrayList<String> filtered = new ArrayList<>();
-		HashSet<String> blacklist = new HashSet<>(Arrays.asList(stopWords));
-		return features;
 	}
 	
 	/*
@@ -180,6 +169,9 @@ public class WSD {
 	 */
 	public static ArrayList<Integer> parseTestData(String filename) {
 		File file = new File(filename);
+		
+		System.out.println("Setting stop words...");
+		filter.setStopWords(filename);
 		BufferedReader bufferedReader = null;
 		
 		//ArrayList to hold senses for each target word in each line
@@ -238,7 +230,6 @@ public class WSD {
 					if (!(notImportant.contains(s) || s.equals(target)
 							|| (Pattern.compile("[0-9]").matcher(s).find()))) {
 						String lower_s = s.toLowerCase();
-						System.out.println(lower_s);
 						String[] contextMeaning = lookUpDictionaryContext(lower_s);
 						//System.out.println(contextMeaning);
 						//System.out.println("hi");
@@ -273,29 +264,31 @@ public class WSD {
 										
 										int currTargIndex = indices[k];
 										String prevTarget = (currTargIndex == 0)?null:targetDef[currTargIndex-1];
-										String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex-1];
+										String nextTarget = (currTargIndex == targetSize-1)?null:targetDef[currTargIndex+1];
 										                           
 										//if words in front or back of the word are the same, incrementing points
-										if (prevTarget != null && prevTarget != null)
-											if (nextTarget.equals(prevTarget))
+										if (nextTarget != null && nextContext != null)
+											if (nextTarget.equals(nextContext))
 												points[i]++;
 			
-										if (nextContext != null && prevContext != null)
-											if (nextContext.equals(prevContext))
+										if (prevTarget != null && prevContext != null)
+											if (prevContext.equals(prevTarget))
 												points[i]++;
 									}
 								}
 							}
 						}
 						
+						ArrayList<String> dictSenses = parseXML(target);
 						//find max points value from senses, add to arraylist
-						int max = 0;
+						int maxIndex = 0;
 						for (int i = 0; i < numSenses; i++) {
-							if (points[i] > max) {
-								max = points[i];
+							if (points[i] > points[maxIndex]) {
+								maxIndex = i;
 							}
 						}
-						senses.add(max);
+
+						senses.add(maxIndex+1);
 					}
 				}
 				
@@ -322,10 +315,23 @@ public class WSD {
 		return senses;
 	}
 	
+	/*
+	 * Parse the given XML file and extract the mappings in an arraylist
+	 * Note: sense 0 in the resulting array is actually sense 1
+	 */
+	public static ArrayList<String> parseXML(String target) {
+		
+		
+		return null;
+	}
+	
 	public static void main(String[] args) {
 		WSD.initDictionary();
 		WSD.lookUpDictionaryContext("chair.n");
-		WSD.parseTestData("/home/blee/workspace/4740_p2/src/Data/test_data.data");
+		ArrayList<Integer> senses = WSD.parseTestData("/home/blee/workspace/4740_p2/src/Data/test_data.data");
+		for (int i:senses)
+			System.out.println(i);
+			
 		System.out.println("end");
 	}
 	
