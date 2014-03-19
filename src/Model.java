@@ -118,14 +118,16 @@ public class Model {
 			
 			for(int a = 0; a < preFeatures.length; a++) {
 				if(finalFeatures.contains(preFeatures[a].trim())) {
-					currProb *= ((double) curr.getVal(preFeatures[a].trim())) / ((double) curr.getNumExamples());
+					double featureVal = ((double) curr.getVal(preFeatures[a].trim())) / ((double) curr.getNumExamples());
+					currProb *= featureVal;
 				}
 			}
 			if(partitioned.length >= 3){
 				String[] postFeatures = partitioned[2].split("\\s+");
 				for(int a = 0; a < postFeatures.length; a++) {
 					if(finalFeatures.contains(postFeatures[a].trim())) {
-						currProb *= ((double) curr.getVal(postFeatures[a].trim())) / ((double) curr.getNumExamples());
+						double featureVal = ((double) curr.getVal(postFeatures[a].trim())) / ((double) curr.getNumExamples());
+						currProb *= featureVal;
 					}
 				}
 			}

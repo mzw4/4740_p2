@@ -38,6 +38,7 @@ public class Main {
 			}
 		}
 		
+		in.close();
 	}
 	
 	public void processTraining(String filename) {
