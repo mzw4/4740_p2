@@ -228,8 +228,12 @@ public class WSD {
 					if (!(notImportant.contains(s) || s.equals(target)
 							|| (Pattern.compile("[0-9]").matcher(s).find()))) {
 						String lower_s = s.toLowerCase();
+						System.out.println(lower_s);
 						String[] contextMeaning = lookUpDictionaryContext(lower_s);
-						
+						//System.out.println(contextMeaning);
+						//System.out.println("hi");
+						if (contextMeaning == null)
+							continue;
 						//for each word, add the points accordingly for each sense
 						//+1 for each word occurrence, +2 if there are consecutive words
 						for (int j = 0; j < contextMeaning.length; j++) {
