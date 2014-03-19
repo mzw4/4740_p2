@@ -1,3 +1,4 @@
+package SupervisedWSD;
 import java.util.Scanner;
 import java.util.HashMap;
 import java.io.File;
@@ -38,6 +39,7 @@ public class Main {
 			}
 		}
 		
+		in.close();
 	}
 	
 	public void processTraining(String filename) {

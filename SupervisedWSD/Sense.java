@@ -1,3 +1,4 @@
+package SupervisedWSD;
 import java.util.HashMap;
 
 public class Sense {
