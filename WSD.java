@@ -60,7 +60,7 @@ public class WSD {
 			String[] tokens = processed.split("\\s+");
 			
 			// Filter irrelevant words and insert into map
-			defs.put(i, filterFeatures(tokens));
+			defs.put(i, Filter.filterFeatures(tokens));
 		}
 		return defs;
 	}
@@ -82,7 +82,7 @@ public class WSD {
 			String[] strings = processed.split("\\s+");
 			
 			// Filter irrelevant features and insert into list
-			tokens.addAll(Arrays.asList(filterFeatures(strings)));
+			tokens.addAll(Arrays.asList(Filter.filterFeatures(strings)));
 		}
 		return tokens.toArray(new String[tokens.size()]);
 	}
@@ -118,18 +118,6 @@ public class WSD {
 			}
 		}
 		return synset;
-	}
-	
-	/*
-	 * Filter features by lemmatizing, then removing irrelevant features from the list,
-	 * and keeping only lexemes that may have an impact on semantic meaning
-	 * 
-	 * Remove stop words, and words with 2 or less letters
-	 */
-	private static String[] filterFeatures(String[] features) {
-		ArrayList<String> filtered = new ArrayList<>();
-		HashSet<String> blacklist = new HashSet<>(Arrays.asList(stopWords));
-		return features;
 	}
 	
 	/*
@@ -180,6 +168,9 @@ public class WSD {
 	 */
 	public static ArrayList<Integer> parseTestData(String filename) {
 		File file = new File(filename);
+		
+		System.out.println("Setting stop words...");
+		Filter.setStopWords(filename);
 		BufferedReader bufferedReader = null;
 		
 		//ArrayList to hold senses for each target word in each line
