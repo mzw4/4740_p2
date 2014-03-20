@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import edu.smu.tspell.wordnet.Synset;
 import edu.smu.tspell.wordnet.SynsetType;
@@ -15,7 +17,8 @@ import edu.smu.tspell.wordnet.WordNetDatabase;
 
 
 public class WSD {
-
+	public static final int POINT_AMT = 100;
+	
 	public static String dictionaryText;
 	public static HashMap<String, HashMap<Integer, String[]>> dictMap = new HashMap<>();
 
@@ -35,14 +38,6 @@ public class WSD {
 	}
 	
 	/*
-	 * 
-	 * Punctuation should be stripped
-	 */
-	public static void dictionaryWSD(String text, String target) {
-		
-	}
-	
-	/*
 	 * Look up target word in dictionary. Need to keep track of senses.
 	 * Returns a map in the form <sense id, array of words in that sense definition> 
 	 */
@@ -54,12 +49,8 @@ public class WSD {
 		
 		HashMap<Integer, String[]> defs = new HashMap<>();
 		for(int i = 0; i < synset.length; i++) {
-			// Process and tokenize
-//			String processed = synset[i].getDefinition().replaceAll("([(),!.?;:])", " $1 ");
-//			String[] tokens = processed.split("\\s+");
-			
 			// Filter irrelevant words and insert into map
-			defs.put(i, filter.filterFeatures(synset[i].getDefinition()));
+			defs.put(i, filter.filterFeatures(synset[i].getDefinition().toLowerCase()));
 		}
 		return defs;
 	}
@@ -76,12 +67,8 @@ public class WSD {
 		
 		ArrayList<String> tokens = new ArrayList<>();
 		for(Synset form: synset) {
-			// Process and tokenize
-//			String processed = form.getDefinition().replaceAll("([(),!.?;:])", " $1 ");
-//			String[] strings = processed.split("\\s+");
-			
 			// Filter irrelevant features and insert into list
-			tokens.addAll(Arrays.asList(filter.filterFeatures(form.getDefinition())));
+			tokens.addAll(Arrays.asList(filter.filterFeatures(form.getDefinition().toLowerCase())));
 		}
 		return tokens.toArray(new String[tokens.size()]);
 	}
@@ -172,9 +159,12 @@ public class WSD {
 		filter.setStopWords(filename);
 		BufferedReader bufferedReader = null;
 		
+		System.out.println("Parsing text...");
 		//ArrayList to hold senses for each target word in each line
 		ArrayList<Integer> senses = new ArrayList<Integer>();
 		
+		int correct_count = 0;
+		double score = 0;
 		try {
 			bufferedReader = new BufferedReader(new FileReader(file));
 			String line = bufferedReader.readLine();
@@ -184,30 +174,38 @@ public class WSD {
 				int targetIndex = line.indexOf("|");
 				String target = line.substring(0,targetIndex).trim();
 				int numSenses = processTarget(target);		
-				target = target.substring(0, target.indexOf("."));
 				
 				//update new string without target
 				line = line.substring(targetIndex+1,line.length());
 				//retrieve block of text
 				int textIndex = line.indexOf("|");
+				
+				// For validation
+				int actualDef = Integer.parseInt(line.substring(0, textIndex).trim());
+				
 				String text = line.substring(textIndex+1,line.length()).trim();
 				// Filter text to lemmatize and remove stop words
 				String[] filteredText = filter.filterFeatures(text);
 
 				//points for each sense
-				int[] points = new int[numSenses];
-				
+				double[] points = new double[numSenses];
+
 				for (String s: filteredText) {
-					if(s.equals(target)) {
+					//if word is target, skip it
+					if(s.equals(target.substring(0, target.indexOf(".")))) {
 						continue;
 					}
 			
 					String lower_s = s.toLowerCase();
 					String[] contextMeaning = lookUpDictionaryContext(lower_s);
-					//System.out.println(contextMeaning);
-
+					
 					if (contextMeaning == null)
 						continue;
+					
+//					System.out.println("DEF MEANING OF: " + lower_s);
+//					for(int i = 0; i < contextMeaning.length; i++) {
+//						System.out.print(contextMeaning[i] + ", ");
+//					}
 					
 					//for each word, add the points accordingly for each sense
 					//+1 for each word occurrence, +2 if there are consecutive words
@@ -216,11 +214,12 @@ public class WSD {
 						String nextContext = (j == contextMeaning.length-1)?null:contextMeaning[j+1];
 						String prevContext = (j == 0)?null:contextMeaning[j-1];
 						
+//						System.out.println("next: " + nextContext + ", prev " + prevContext);
 						for (int i = 0; i < numSenses; i++) {
 							//if the key exists, add one for each key and check surrounding
 							//keys to see if there are consecutive matches
 							if (targetPointers.get(i).containsKey(curr)) {
-								points[i]++;
+								points[i]+=POINT_AMT/contextMeaning.length*(curr.length()/10);
 								
 								//get indices (delimited by commas), convert to ints
 								String[] tempIndices = targetPointers.get(i).get(curr).split(",");
@@ -242,29 +241,65 @@ public class WSD {
 									//if words in front or back of the word are the same, incrementing points
 									if (nextTarget != null && nextContext != null)
 										if (nextTarget.equals(nextContext))
-											points[i]++;
+											points[i]+=POINT_AMT/contextMeaning.length*(curr.length()/10);
 		
 									if (prevTarget != null && prevContext != null)
 										if (prevContext.equals(prevTarget))
-											points[i]++;
+											points[i]+=POINT_AMT/contextMeaning.length*(curr.length()/10);
 								}
 							}
 						}
 					}
 				}
-					
+				
+				// Normalize sense points according to the length of the definition
+				for(int i = 0; i < points.length; i++) {
+					points[i] = points[i]/targetSensesDefinitions.get(i).length;
+				}
+				
+				/////// DEBUG
+//				System.out.println("Target: " + target);
+//				for(int i = 0; i < points.length; i++) {
+//					System.out.print(points[i] + ", ");
+//				}
+//				System.out.println();
+				
 				ArrayList<String> dictSenses = parseXML(target);
-				//find max points value from senses, add to arraylist
+				// find max points value from senses, add to arraylist
 				int maxIndex = 0;
 				for (int i = 0; i < numSenses; i++) {
 					if (points[i] > points[maxIndex]) {
 						maxIndex = i;
 					}
 				}
+				double confidence = calculateConfidence(points[maxIndex], points);
 
-				senses.add(maxIndex+1);
-			
+				//increment maxIndex because indices start at 0
+				maxIndex = maxIndex + 1;
+				//dict sense that corresponds to wordnet sense
+				int dictSense = 0;
+				for (int i = 0; i < dictSenses.size(); i++) {
+					String[] wordNetSenses = dictSenses.get(i).split(",");
+					
+					for (int j = 0; j < wordNetSenses.length; j++) {
+						if (!wordNetSenses[j].isEmpty() && Integer.parseInt(wordNetSenses[j]) == maxIndex) {
+							dictSense = j;
+							break;
+						}
+					}
+				}
+				System.out.println(dictSense+1);
+				senses.add(dictSense+1);
+//				senses.add(1);
 				line = bufferedReader.readLine();
+				
+//				if(1 == actualDef) {
+				if(dictSense+1 == actualDef) {
+					score += confidence;
+					correct_count++;
+				} else {
+					score -= confidence;
+				}
 			}
 			//TODO: Check if it is actually in the dictionary
 			
@@ -280,7 +315,10 @@ public class WSD {
 				e.printStackTrace();
 			}
 		}
-		
+		System.out.println("Parsing complete.");
+		System.out.println("Score: " + score);
+		System.out.println("Correct: %" + (double)correct_count/senses.size());
+
 		return senses;
 	}
 	
@@ -289,12 +327,75 @@ public class WSD {
 	 * Note: sense 0 in the resulting array is actually sense 1
 	 */
 	public static ArrayList<String> parseXML(String target) {
-		return null;
+		ArrayList<String> wordNetSenses = new ArrayList<String>();
+		File file = new File("src/Data/dictionary.xml");
+		BufferedReader bufferedReader = null;
+		
+		try {
+			bufferedReader = new BufferedReader(new FileReader(file));
+			String line = bufferedReader.readLine();
+			
+			while (line != null) {
+				//if target word found, read until next lexelt appears
+				//and store senses into arraylist
+				if (Pattern.compile("item=\""+target+"\"").matcher(line).find()) {	
+					//read next line to skip over opening lexelt tag
+					line = bufferedReader.readLine();
+					
+					while (!line.equals("</lexelt>")) {
+						Pattern p = Pattern.compile("(wordnet=\")[0-9,]*(\")");
+						Matcher m = p.matcher(line);
+						
+						//find next match of regex
+						m.find();
+						
+						//remove wordnet and quotes
+						String match = m.group();
+						int quoteIndex = m.group().indexOf("\"");
+						String newMatch = match.substring(quoteIndex+1,match.length()-1);
+						wordNetSenses.add(newMatch);
+						
+						//reading between lexelt tags
+						line = bufferedReader.readLine();
+					}
+					
+					break;
+				}
+				
+				line = bufferedReader.readLine();
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				bufferedReader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		return wordNetSenses;
+	}
+	
+	/*
+	 * Calculates how confident of a prediction we have
+	 */
+	public static double calculateConfidence(double max, double[] list) {
+		double sum = 0;
+		for(double d: list) {
+			sum += d;
+		}
+		if(sum == 0) {
+			return 0;
+		}
+		return max/sum;
 	}
 	
 	public static void main(String[] args) {
 		WSD.initDictionary();
-		ArrayList<Integer> senses = WSD.parseTestData("src/test_data.data");
+		ArrayList<Integer> senses = WSD.parseTestData("src/Data/validation_data.data");
+//		ArrayList<Integer> senses = WSD.parseTestData("src/test.txt");
 		for (int i:senses)
 			System.out.print(i + ", ");
 		System.out.println();

@@ -10,13 +10,14 @@ import java.util.Properties;
 
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 
 public class Filter {
-	public static final int STOP_THRESHOLD = 10;
-	
+	public static final int STOP_THRESHOLD = 450;
+	public static final int STOP_WORD_SIZE_LIMIT = 3;
 	public HashSet<String> stopWords = new HashSet<>();
 	
     protected StanfordCoreNLP pipeline;
@@ -45,8 +46,8 @@ public class Filter {
 		pipeline.annotate(document);		
 		
 		for (CoreLabel token : document.get(TokensAnnotation.class)) {
-			if(!stopWords.contains(token.word()) && token.word().length() > 2) {
-				filtered.add(token.get(LemmaAnnotation.class));
+			if(!stopWords.contains(token.word()) && token.word().length() > STOP_WORD_SIZE_LIMIT && token.get(PartOfSpeechAnnotation.class) == "VB" || token.get(PartOfSpeechAnnotation.class) == "NN" || token.get(PartOfSpeechAnnotation.class) == "JJ") {
+				filtered.add(token.get(LemmaAnnotation.class).toLowerCase());
 			}
 		}
 		
@@ -64,12 +65,14 @@ public class Filter {
 			text = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 		} catch (IOException e) {
 			e.printStackTrace();
-		}	
-
+		}
+		
+		Annotation document = new Annotation(text.replaceAll("[^a-zA-Z ]", ""));
+		pipeline.annotate(document);		
+		
 		HashMap<String, Integer> counts = new HashMap<>();
-		String[] processed = text.replaceAll("[^a-zA-Z ]", "").split(" ");
-
-		for(String s: processed) {
+		for (CoreLabel token : document.get(TokensAnnotation.class)) {
+			String s = token.word().toLowerCase();
 			if(counts.containsKey(s)) {
 				counts.put(s, counts.get(s)+1);
 			} else if(!s.isEmpty()){
@@ -89,6 +92,7 @@ public class Filter {
 				stopWords.add(s);
 			}
 		}
+		System.out.println(stopWords);
 	}
 	
 	public static void main(String[] args) {
